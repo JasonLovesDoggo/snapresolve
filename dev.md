@@ -179,3 +179,5 @@
 - Multi-LLM support
 - Accessibility features
 
+# Notes
+- Need gcc libgtk-3-dev libayatana-appindicator3-dev (for linux builds)

@@ -7,6 +7,7 @@ toolchain go1.22.11
 require (
 	github.com/emersion/go-autostart v0.0.0-20210130080809-00ed301c8e9a
 	github.com/getlantern/systray v1.2.2
+	github.com/jasonlovesdoggo/displayindex v0.0.0-20250201035516-7ae670be1416
 	github.com/kbinani/screenshot v0.0.0-20250118074034-a3924b7bbc8c
 	github.com/sashabaranov/go-openai v1.36.1
 	github.com/spf13/viper v1.19.0
