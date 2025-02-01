@@ -5,3 +5,7 @@
 export function AnalyzeScreenshot() {
   return window['go']['main']['App']['AnalyzeScreenshot']();
 }
+
+export function OpenSettings() {
+  return window['go']['main']['App']['OpenSettings']();
+}

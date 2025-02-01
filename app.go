@@ -5,6 +5,8 @@ import (
 	"github.com/getlantern/systray"
 	"github.com/getlantern/systray/example/icon"
 	"github.com/jasonlovesdoggo/snapresolve/services"
+	"github.com/skratchdot/open-golang/open"
+	"github.com/spf13/viper"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"os"
 )
@@ -44,16 +46,42 @@ func (a *App) handleScreenshot() {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	runtime.WindowHide(ctx)
 
 	cfg, err := services.LoadConfig()
 	if err != nil {
+		runtime.LogError(ctx, "Failed to load config: "+err.Error())
 		return
 	}
 	a.config = cfg
 
 	a.screenshot = services.NewScreenshotService(cfg.TempDir)
-	a.llm = services.NewLLMService(cfg.OpenAIKey, cfg.Prompt)
+
+	// Determine which API key to use based on provider
+	provider := services.Provider(cfg.Provider)
+	var apiKey string
+	switch provider {
+	case services.ProviderOpenAI:
+		if cfg.OpenAIKey == "" {
+			runtime.LogFatal(ctx, "OpenAI key is required")
+			runtime.Quit(ctx)
+		}
+		apiKey = cfg.OpenAIKey
+	case services.ProviderGemini:
+		if cfg.GeminiKey == "" {
+			runtime.LogFatal(ctx, "Gemini key is required")
+			runtime.Quit(ctx)
+		}
+		apiKey = cfg.GeminiKey
+
+	}
+
+	// Initialize LLM service
+	llmService, err := services.NewLLMService(provider, apiKey, cfg.Prompt)
+	if err != nil {
+		runtime.LogError(ctx, "Failed to initialize LLM service: "+err.Error())
+		return
+	}
+	a.llm = llmService
 }
 
 func (a *App) onReady() {
@@ -72,7 +100,7 @@ func (a *App) onReady() {
 			case <-mCapture.ClickedCh:
 				a.handleScreenshot()
 			case <-mSettings.ClickedCh:
-				runtime.WindowShow(a.ctx)
+				a.OpenSettings()
 			case <-mQuit.ClickedCh:
 				systray.Quit()
 				return
@@ -93,4 +121,15 @@ func (a *App) AnalyzeScreenshot() (string, error) {
 	}
 
 	return a.llm.Analyze(img)
+}
+
+func (a *App) OpenSettings() {
+	//configPath := getConfigPath()
+	configFile := viper.ConfigFileUsed()
+	runtime.LogInfof(a.ctx, "Opening config file: %s", configFile)
+
+	err := open.Start(configFile)
+	if err != nil {
+		panic(err)
+	}
 }

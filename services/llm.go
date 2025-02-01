@@ -2,74 +2,89 @@ package services
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"os"
-	"time"
 
-	"github.com/sashabaranov/go-openai"
+	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/googleai"
+	"github.com/tmc/langchaingo/llms/openai"
+)
+
+type Provider string
+
+const (
+	ProviderOpenAI Provider = "openai"
+	ProviderGemini Provider = "gemini"
 )
 
 type LLMService struct {
-	client *openai.Client
+	llm    llms.Model
 	prompt string
 }
 
-func NewLLMService(openAIkey, prompt string) *LLMService {
-	fmt.Println("Initializing LLM service with prompt:", prompt)
-	// Initialize the OpenAI client
+func NewLLMService(provider Provider, apiKey, prompt string) (*LLMService, error) {
+	var llmInstance llms.Model
+	var err error
 
-	fmt.Println("Initializing OpenAI client with key:", openAIkey)
+	switch provider {
+	case ProviderOpenAI:
+		llmInstance, err = openai.New(openai.WithToken(apiKey),
+			openai.WithModel("gpt-4o"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize OpenAI: %w", err)
+		}
 
-	return &LLMService{openai.NewClient(openAIkey), prompt}
+	case ProviderGemini:
+		llmInstance, err = googleai.New(context.Background(), googleai.WithAPIKey(apiKey),
+			googleai.WithDefaultModel("gemini-1.5-pro"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize Gemini: %w", err)
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported provider: %s", provider)
+	}
+
+	return &LLMService{
+		llm:    llmInstance,
+		prompt: prompt,
+	}, nil
 }
 
 func (l *LLMService) Analyze(imagePath string) (string, error) {
-	if l.client == nil {
-		return "", fmt.Errorf("OpenAI client not initialized")
-	}
-
-	fmt.Println("Analyzing image:", imagePath)
-
-	imgBytes, err := os.ReadFile(imagePath)
+	imgContent, err := l.readImageContent(imagePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read image: %w", err)
 	}
 
-	b64Img := base64.StdEncoding.EncodeToString(imgBytes)
+	ctx := context.Background()
+	parts := []llms.ContentPart{
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	resp, err := l.client.CreateChatCompletion(
-		ctx,
-		openai.ChatCompletionRequest{
-			Model: openai.GPT4VisionPreview,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role: openai.ChatMessageRoleUser,
-					MultiContent: []openai.ChatMessagePart{
-						{
-							Type: openai.ChatMessagePartTypeText,
-							Text: l.prompt,
-						},
-						{
-							Type: openai.ChatMessagePartTypeImageURL,
-							ImageURL: &openai.ChatMessageImageURL{
-								URL:    fmt.Sprintf("data:image/png;base64,%s", b64Img),
-								Detail: openai.ImageURLDetailHigh,
-							},
-						},
-					},
-				},
-			},
-			MaxTokens: 500,
-		},
-	)
-
-	if err != nil {
-		return "", fmt.Errorf("OpenAI API error: %w", err)
+		llms.TextPart(l.prompt),
+		llms.BinaryPart("image/png", imgContent),
 	}
 
-	return resp.Choices[0].Message.Content, nil
+	completion, err := l.llm.GenerateContent(ctx, []llms.MessageContent{
+		{
+			Parts: parts,
+			Role:  llms.ChatMessageTypeHuman,
+		},
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("error getting response from LLM: %v", err)
+	}
+
+	result := completion.Choices[0].Content
+	fmt.Println(result)
+	return result, nil
+}
+
+func (l *LLMService) readImageContent(imagePath string) ([]byte, error) {
+	imgBytes, err := os.ReadFile(imagePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return imgBytes, nil
 }

@@ -4,16 +4,16 @@ import (
 	"errors"
 	"github.com/spf13/viper"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 )
 
 type Config struct {
-	OpenAIKey     string // OpenAI API key
-	HotkeyCapture string // Hotkey to capture a screenshot
-	TempDir       string // Directory to store the temporary screenshot files in (will be created if it doesn't exist)
-	Prompt        string // Prompt for the user on what to do with the screenshot
+	OpenAIKey     string `mapstructure:"openai_key"`
+	GeminiKey     string `mapstructure:"gemini_key"`
+	HotkeyCapture string `mapstructure:"hotkey_capture"`
+	TempDir       string `mapstructure:"temp_dir"`
+	Prompt        string `mapstructure:"prompt"`
+	Provider      string `mapstructure:"provider"` // "openai" or "gemini"
 }
 
 func LoadConfig() (*Config, error) {
@@ -23,9 +23,11 @@ func LoadConfig() (*Config, error) {
 	configPath := getConfigPath()
 	viper.AddConfigPath(configPath)
 
+	// Set defaults
 	viper.SetDefault("hotkey_capture", "Alt+Shift+S")
 	viper.SetDefault("temp_dir", filepath.Join(configPath, "temp"))
 	viper.SetDefault("prompt", "Please analyze this screenshot and say how to fix what is in it.")
+	viper.SetDefault("provider", "gemini")
 
 	if err := viper.ReadInConfig(); err != nil {
 		var configFileNotFoundError viper.ConfigFileNotFoundError
@@ -37,14 +39,12 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
-	config := &Config{
-		OpenAIKey:     viper.GetString("openai_key"),
-		HotkeyCapture: viper.GetString("hotkey_capture"),
-		TempDir:       viper.GetString("temp_dir"),
-		Prompt:        viper.GetString("prompt"),
+	var config Config
+	if err := viper.Unmarshal(&config); err != nil {
+		return nil, err
 	}
 
-	return config, nil
+	return &config, nil
 }
 
 func getConfigPath() string {
@@ -54,26 +54,4 @@ func getConfigPath() string {
 
 	os.MkdirAll(configDir, 0755)
 	return configDir
-}
-
-func openSettings() {
-	//configPath := getConfigPath()
-	configFile := viper.ConfigFileUsed()
-
-	var cmd string
-	var args []string
-
-	switch runtime.GOOS {
-	case "windows":
-		cmd = "notepad"
-		args = []string{configFile}
-	case "darwin":
-		cmd = "open"
-		args = []string{configFile}
-	default: // linux
-		cmd = "xdg-open"
-		args = []string{configFile}
-	}
-
-	exec.Command(cmd, args...).Start()
 }
