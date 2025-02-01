@@ -7,25 +7,29 @@ import (
 	"os"
 	"time"
 
-	openai "github.com/sashabaranov/go-openai"
+	"github.com/sashabaranov/go-openai"
 )
 
 type LLMService struct {
 	client *openai.Client
+	prompt string
 }
 
-func NewLLMService() *LLMService {
-	return &LLMService{}
+func NewLLMService(openAIkey, prompt string) *LLMService {
+	fmt.Println("Initializing LLM service with prompt:", prompt)
+	// Initialize the OpenAI client
+
+	fmt.Println("Initializing OpenAI client with key:", openAIkey)
+
+	return &LLMService{openai.NewClient(openAIkey), prompt}
 }
 
-func (l *LLMService) Init(apiKey string) {
-	l.client = openai.NewClient(apiKey)
-}
-
-func (l *LLMService) Analyze(imagePath, prompt string) (string, error) {
+func (l *LLMService) Analyze(imagePath string) (string, error) {
 	if l.client == nil {
 		return "", fmt.Errorf("OpenAI client not initialized")
 	}
+
+	fmt.Println("Analyzing image:", imagePath)
 
 	imgBytes, err := os.ReadFile(imagePath)
 	if err != nil {
@@ -47,7 +51,7 @@ func (l *LLMService) Analyze(imagePath, prompt string) (string, error) {
 					MultiContent: []openai.ChatMessagePart{
 						{
 							Type: openai.ChatMessagePartTypeText,
-							Text: prompt,
+							Text: l.prompt,
 						},
 						{
 							Type: openai.ChatMessagePartTypeImageURL,

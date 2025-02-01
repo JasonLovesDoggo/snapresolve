@@ -1,4 +1,4 @@
-module snapresolve
+module github.com/jasonlovesdoggo/snapresolve
 
 go 1.22.0
 

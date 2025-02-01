@@ -1,5 +1,9 @@
 build/bin
 node_modules
 frontend/dist
-!config.go
-config.*
+
+
+config.toml
+config.yaml
+config.json
+config.hcl
