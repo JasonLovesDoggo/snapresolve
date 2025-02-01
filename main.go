@@ -16,10 +16,11 @@ func main() {
 	go systray.Run(app.onReady, app.onExit)
 
 	err := wails.Run(&options.App{
-		Title:     "Snapresolve",
-		Width:     800,
-		Height:    600,
-		Frameless: true,
+		Title:       "Snapresolve",
+		Width:       800,
+		Height:      600,
+		Frameless:   true,
+		StartHidden: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

@@ -8,16 +8,18 @@ jobs:
       fail-fast: false
       matrix:
         build: [
-          {name: SnapResolve, platform: linux/amd64, os: ubuntu-latest},
-          {name: SnapResolve, platform: windows/amd64, os: windows-latest},
-          {name: SnapResolve, platform: darwin/universal, os: macos-latest}
+          {name: snapresolve, platform: linux/amd64, os: ubuntu-latest},
+          {name: snapresolve, platform: windows/amd64, os: windows-latest},
+          {name: snapresolve, platform: darwin/universal, os: macos-latest}
         ]
     runs-on: ${{ matrix.build.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - uses: dAppServer/wails-build-action@v2.2
         with:
+          go-version: "1.22"
+          sign: true
           build-name: ${{ matrix.build.name }}
           build-platform: ${{ matrix.build.platform }}
