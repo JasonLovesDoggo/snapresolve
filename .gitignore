@@ -2,8 +2,14 @@ build/bin
 node_modules
 frontend/dist
 
-
+# config's
 config.toml
 config.yaml
 config.json
 config.hcl
+
+
+# build outputs
+
+*.exe
+*.syso
