@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DiscordProjectSettings">
+    <option name="show" value="PROJECT_FILES" />
+    <option name="description" value="Snapresolve is a cross-platform desktop app that lets users instantly analyze screenshots using AI" />
+    <option name="applicationTheme" value="default" />
+    <option name="iconsTheme" value="default" />
+    <option name="button1Title" value="Github!" />
+    <option name="button1Url" value="https://github.com/JasonLovesDoggo/snapresolve" />
+    <option name="button2Title" value="Other package I made for this!" />
+    <option name="button2Url" value="https://github.com/JasonLovesDoggo/displayindex" />
+    <option name="customApplicationId" value="" />
+  </component>
+</project>
