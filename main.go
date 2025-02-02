@@ -13,7 +13,7 @@ var assets embed.FS
 
 func main() {
 	app := NewApp()
-	go systray.Run(app.onReady, app.onExit)
+	go systray.Run(app.Systray, app.onExit)
 
 	err := wails.Run(&options.App{
 		Title:       "Snapresolve",

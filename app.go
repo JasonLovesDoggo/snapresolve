@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/getlantern/systray"
 	"github.com/getlantern/systray/example/icon"
 	"github.com/jasonlovesdoggo/snapresolve/services"
@@ -16,75 +17,86 @@ type App struct {
 	config     *services.Config
 	screenshot *services.ScreenshotService
 	llm        *services.LLMService
+	ui         *services.UIService
+	hotkey     *services.HotkeyService
 }
 
 func NewApp() *App {
 	return &App{}
 }
 
-func (a *App) handleScreenshot() {
-	// Capture screenshot
-	imgPath, err := a.screenshot.CaptureCurrentScreen()
-	if err != nil {
-		runtime.LogError(a.ctx, "Failed to capture screenshot: "+err.Error())
-		return
-	}
-
-	// Analyze with LLM
-	result, err := a.llm.Analyze(imgPath)
-	if err != nil {
-		runtime.LogError(a.ctx, "Failed to analyze screenshot: "+err.Error())
-		return
-	}
-
-	// Emit event to frontend with result
-	runtime.EventsEmit(a.ctx, "analysis-result", result)
-
-	// Clean up the temporary screenshot file
-	os.Remove(imgPath)
-}
-
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
+	// Load configuration
 	cfg, err := services.LoadConfig()
 	if err != nil {
-		runtime.LogError(ctx, "Failed to load config: "+err.Error())
 		return
 	}
 	a.config = cfg
 
+	// Initialize services
 	a.screenshot = services.NewScreenshotService(cfg.TempDir)
-
-	// Determine which API key to use based on provider
-	provider := services.Provider(cfg.Provider)
-	var apiKey string
-	switch provider {
-	case services.ProviderOpenAI:
-		if cfg.OpenAIKey == "" {
-			runtime.LogFatal(ctx, "OpenAI key is required")
-			runtime.Quit(ctx)
-		}
-		apiKey = cfg.OpenAIKey
-	case services.ProviderGemini:
-		if cfg.GeminiKey == "" {
-			runtime.LogFatal(ctx, "Gemini key is required")
-			runtime.Quit(ctx)
-		}
-		apiKey = cfg.GeminiKey
-
-	}
+	a.ui = services.NewUIService()
 
 	// Initialize LLM service
+	provider := services.Provider(cfg.Provider)
+	apiKey := cfg.GeminiKey
+	if provider == services.ProviderOpenAI {
+		apiKey = cfg.OpenAIKey
+	}
+
 	llmService, err := services.NewLLMService(provider, apiKey, cfg.Prompt)
 	if err != nil {
-		runtime.LogError(ctx, "Failed to initialize LLM service: "+err.Error())
+		a.ui.ShowError("Failed to initialize LLM service: " + err.Error())
 		return
 	}
 	a.llm = llmService
+
+	// Initialize hotkey service
+	hotkeyService, err := services.NewHotkeyService(cfg.HotkeyCapture, a.handleScreenshot)
+	if err != nil {
+		a.ui.ShowError("Failed to register hotkey: " + err.Error())
+		return
+	}
+	a.hotkey = hotkeyService
 }
 
-func (a *App) onReady() {
+func (a *App) handleScreenshot() {
+
+	fmt.Println("Taking screenshot...")
+
+	// Capture screenshot
+	imgPath, err := a.screenshot.CaptureCurrentScreen()
+	if err != nil {
+		a.ui.ShowError("Failed to capture screenshot: " + err.Error())
+		return
+	}
+	defer os.Remove(imgPath) // Clean up the temporary file
+
+	// Analyze with LLM
+	result, err := a.llm.Analyze(imgPath)
+	if err != nil {
+		a.ui.ShowError("Failed to analyze screenshot: " + err.Error())
+		return
+	}
+
+	// Show result
+	if err := a.ui.ShowResult(result); err != nil {
+		a.ui.ShowError("Failed to show result: " + err.Error())
+	}
+}
+
+func (a *App) onExit() {
+	if a.hotkey != nil {
+		a.hotkey.Stop()
+	}
+	if err := a.screenshot.CleanupTempFiles(); err != nil {
+		a.ui.ShowError("Failed to cleanup temp files: " + err.Error())
+	}
+}
+
+func (a *App) Systray() {
 	systray.SetIcon(icon.Data) // You'll need to provide icon data
 	systray.SetTitle("Snapresolve")
 	systray.SetTooltip("AI Screenshot Analysis")
@@ -107,20 +119,6 @@ func (a *App) onReady() {
 			}
 		}
 	}()
-}
-
-func (a *App) onExit() {
-	a.screenshot.CleanupTempFiles()
-}
-
-// AnalyzeScreenshot is exported for frontend use
-func (a *App) AnalyzeScreenshot() (string, error) {
-	img, err := a.screenshot.CaptureCurrentScreen()
-	if err != nil {
-		return "", err
-	}
-
-	return a.llm.Analyze(img)
 }
 
 func (a *App) OpenSettings() {

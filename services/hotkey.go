@@ -1,56 +1,36 @@
 package services
 
 import (
-	"context"
 	"fmt"
-	"strings"
-
 	"golang.design/x/hotkey"
+	"strings"
 )
 
 type HotkeyService struct {
-	ctx      context.Context
-	hk       *hotkey.Hotkey
-	callback func()
+	hk      *hotkey.Hotkey
+	handler func()
 }
 
-func NewHotkeyService() *HotkeyService {
-	return &HotkeyService{}
-}
+func NewHotkeyService(hotkeyStr string, handler func()) (*HotkeyService, error) {
+	mods, key := parseHotkey(hotkeyStr)
 
-func (h *HotkeyService) Init(ctx context.Context, callback func()) {
-	h.ctx = ctx
-	h.callback = callback
-}
-
-func (h *HotkeyService) Register(hotkeyStr string) error {
-	if h.hk != nil {
-		h.hk.Unregister()
+	hk := hotkey.New(mods, key)
+	if err := hk.Register(); err != nil {
+		return nil, fmt.Errorf("failed to register hotkey: %w", err)
 	}
 
-	mods, key := h.parseHotkey(hotkeyStr)
-	h.hk = hotkey.New(mods, key)
-
-	if err := h.hk.Register(); err != nil {
-		return fmt.Errorf("failed to register hotkey: %w", err)
+	service := &HotkeyService{
+		hk:      hk,
+		handler: handler,
 	}
 
-	go func() {
-		for range h.hk.Keydown() {
-			h.callback()
-		}
-	}()
+	// Start listening for hotkey events
+	go service.listen()
 
-	return nil
+	return service, nil
 }
 
-func (h *HotkeyService) Cleanup() {
-	if h.hk != nil {
-		h.hk.Unregister()
-	}
-}
-
-func (h *HotkeyService) parseHotkey(hk string) ([]hotkey.Modifier, hotkey.Key) {
+func parseHotkey(hk string) ([]hotkey.Modifier, hotkey.Key) {
 	parts := strings.Split(strings.ToLower(hk), "+")
 	var mods []hotkey.Modifier
 
@@ -67,4 +47,17 @@ func (h *HotkeyService) parseHotkey(hk string) ([]hotkey.Modifier, hotkey.Key) {
 
 	key := hotkey.Key(parts[len(parts)-1][0])
 	return mods, key
+}
+
+func (h *HotkeyService) listen() {
+	for range h.hk.Keydown() {
+		fmt.Println("Detected hotkey press", h.hk.String())
+		h.handler()
+	}
+}
+
+func (h *HotkeyService) Stop() {
+	if h.hk != nil {
+		h.hk.Unregister()
+	}
 }

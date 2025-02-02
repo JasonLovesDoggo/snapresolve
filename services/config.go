@@ -26,7 +26,7 @@ func LoadConfig() (*Config, error) {
 	// Set defaults
 	viper.SetDefault("hotkey_capture", "Alt+Shift+S")
 	viper.SetDefault("temp_dir", filepath.Join(configPath, "temp"))
-	viper.SetDefault("prompt", "Please analyze this screenshot and say how to fix what is in it.")
+	viper.SetDefault("prompt", "Please analyze this screenshot and say how to fix what is in it. Be concise and clear. Follow the order of PROBLEM, SOLUTION, REASONING. max 100 word")
 	viper.SetDefault("provider", "gemini")
 
 	if err := viper.ReadInConfig(); err != nil {
