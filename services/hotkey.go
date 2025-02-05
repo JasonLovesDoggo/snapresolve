@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	hotkeyutil "github.com/jasonlovesdoggo/snapresolve/utils/hotkey"
 	"golang.design/x/hotkey"
 	"strings"
 )
@@ -41,7 +42,7 @@ func parseHotkey(hk string) ([]hotkey.Modifier, hotkey.Key) {
 		case "shift":
 			mods = append(mods, hotkey.ModShift)
 		case "alt":
-			mods = append(mods, hotkey.ModAlt)
+			mods = append(mods, hotkeyutil.GetModKey())
 		}
 	}
 
