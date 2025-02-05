@@ -11,10 +11,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: [snapresolve]
-        platform: [linux/amd64, windows/amd64, darwin/universal, darwin/universal]
-        os: [ubuntu-latest, windows-latest, macos-latest, macos-15-large]
-    runs-on: ${{ matrix.os }}
+        build: [
+          {name: snapresolve, platform: linux/amd64, os: ubuntu-latest},
+          {name: snapresolve, platform: windows/amd64, os: windows-latest},
+          {name: snapresolve, platform: darwin/universal, os: macos-latest},
+          {name: snapresolve, platform: darwin/universal, os: macos-15} # Large macOS instance
+        ]
+    runs-on: ${{ matrix.build.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,5 +26,5 @@ jobs:
         with:
           go-version: "1.22"
           sign: true
-          build-name: ${{ matrix.name }}
-          build-platform: ${{ matrix.platform }}
+          build-name: ${{ matrix.build.name }}
+          build-platform: ${{ matrix.build.platform }}
